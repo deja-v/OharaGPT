@@ -1,0 +1,28 @@
+# Environment
+.env
+
+# Generated at runtime
+checkpoints.sqlite
+
+# Data pipeline output (Phase 2)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Frontend (Phase 3)
+node_modules/
+ui/dist/
+
+# Editor
+.DS_Store
+Thumbs.db
+.cursor/
+docs/
