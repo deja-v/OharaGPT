@@ -1,26 +1,30 @@
 """
 CLI entry point.
 
-Usage:
-    python main.py "Who is Roronoa Zoro?"
-
-Each run gets a unique thread_id so checkpoints don't collide across questions.
-The checkpoint DB is written to checkpoints.sqlite in the project root.
+Usage (from repo root):
+    python backend/main.py "Who is Roronoa Zoro?"
 """
 
 import sys
 import uuid
+from pathlib import Path
 
+# Allow `from agent.graph import ...` to resolve when running from the repo root.
+sys.path.insert(0, str(Path(__file__).parent))
+
+from dotenv import load_dotenv
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-from agent import build_graph
+from agent.graph import build_graph
 
-DB_PATH = "checkpoints.sqlite"
+load_dotenv(Path(__file__).parent / ".env")
+
+DB_PATH = str(Path(__file__).parent / "checkpoints.sqlite")
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python main.py \"<your One Piece question>\"")
+        print('Usage: python backend/main.py "<your One Piece question>"')
         sys.exit(1)
 
     question = sys.argv[1]
