@@ -1,25 +1,28 @@
 # Environment
 .env
+backend/.env
 
 # Generated at runtime
 checkpoints.sqlite
+backend/checkpoints.sqlite
 
-# Data pipeline output (Phase 2)
-data/
+# Data pipeline output
+backend/data/
 
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
 venv/
+backend/venv/
 .venv/
 *.egg-info/
 dist/
 build/
 
-# Frontend (Phase 3)
+# Frontend
 node_modules/
-ui/dist/
+frontend/dist/
 
 # Editor
 .DS_Store
