@@ -14,3 +14,12 @@ python-dotenv==1.2.2
 
 # Data validation for typed graph state
 pydantic==2.13.3
+
+# RAG — scraping
+httpx==0.28.1
+beautifulsoup4==4.14.3
+markdownify==1.2.2
+
+# RAG — embeddings + vector store
+sentence-transformers==5.4.1
+chromadb==1.5.8
