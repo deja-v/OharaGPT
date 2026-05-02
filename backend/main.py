@@ -33,7 +33,7 @@ def main():
     with SqliteSaver.from_conn_string(DB_PATH) as checkpointer:
         graph = build_graph(checkpointer)
         config = {"configurable": {"thread_id": thread_id}}
-        result = graph.invoke({"question": question, "answer": ""}, config)
+        result = graph.invoke({"question": question, "context": [], "answer": ""}, config)
 
     print(f"\nQ: {question}")
     print(f"\nA: {result['answer']}")
