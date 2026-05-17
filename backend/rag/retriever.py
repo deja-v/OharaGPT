@@ -13,6 +13,60 @@ EMBED_MODEL = "all-MiniLM-L6-v2"
 
 _collection = None
 
+# Maps known in-universe aliases to their canonical names.
+# Used by expand_query() to improve embedding recall.
+# Add new aliases here as needed — no other code changes required.
+ALIAS_MAP = {
+    "gomu gomu no mi": "Hito Hito no Mi, Model: Nika",
+    "gomu gomu": "Hito Hito no Mi, Model: Nika",
+}
+
+
+def expand_query(query: str) -> str:
+    """
+    Appends canonical names for any aliases found in the query.
+    Works for any phrasing — substring match on lowercased query.
+    Example:
+      "What is Gomu Gomu no Mi's real name?"
+      → "What is Gomu Gomu no Mi's real name? (Hito Hito no Mi, Model: Nika)"
+    """
+    q_lower = query.lower()
+    expansions = []
+    for alias, canonical in ALIAS_MAP.items():
+        if alias in q_lower:
+            expansions.append(canonical)
+    if not expansions:
+        return query
+    return query + " (" + "; ".join(expansions) + ")"
+
+
+def diversify(chunks: list[dict], k: int) -> list[dict]:
+    """
+    Returns up to k chunks, preferring source diversity.
+    First pass: take the highest-ranked chunk from each unique source.
+    Second pass: fill remaining slots with next-best from any source.
+    No page names or sources are hardcoded.
+    """
+    seen_sources = set()
+    result = []
+
+    # First pass — one chunk per source (highest ranked = earliest in list)
+    for chunk in chunks:
+        if chunk["source"] not in seen_sources:
+            seen_sources.add(chunk["source"])
+            result.append(chunk)
+        if len(result) == k:
+            return result
+
+    # Second pass — fill remaining slots
+    for chunk in chunks:
+        if chunk not in result:
+            result.append(chunk)
+        if len(result) == k:
+            break
+
+    return result
+
 
 def _get_collection():
     global _collection
@@ -31,7 +85,7 @@ def _get_collection():
     return _collection
 
 
-def retrieve(query: str, k: int = 4) -> list[dict]:
+def retrieve(query: str, k: int = 6) -> list[dict]:
     """
     Return the top-k wiki chunks most relevant to `query`.
 
@@ -41,17 +95,19 @@ def retrieve(query: str, k: int = 4) -> list[dict]:
       - heading: section heading within the page
       - score:   cosine distance (lower = more similar)
     """
+    expanded = expand_query(query)
+
     collection = _get_collection()
-    results = collection.query(
-        query_texts=[query],
-        n_results=k,
+    raw = collection.query(
+        query_texts=[expanded],
+        n_results=k * 3,  # higher recall gives diversify() more to work with
         include=["documents", "metadatas", "distances"],
     )
 
     chunks = []
-    docs = results["documents"][0]
-    metas = results["metadatas"][0]
-    distances = results["distances"][0]
+    docs = raw["documents"][0]
+    metas = raw["metadatas"][0]
+    distances = raw["distances"][0]
 
     for doc, meta, dist in zip(docs, metas, distances):
         chunks.append({
@@ -61,4 +117,4 @@ def retrieve(query: str, k: int = 4) -> list[dict]:
             "score": round(dist, 4),
         })
 
-    return chunks
+    return diversify(chunks, k=k)

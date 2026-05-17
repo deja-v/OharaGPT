@@ -2,7 +2,7 @@
 
 ## What this is
 
-A [LangGraph](https://langchain-ai.github.io/langgraph/) `StateGraph` that answers One Piece questions using an LLM. It currently uses only the LLM's built-in knowledge; a retrieval node will be added in the next stage to pull from a local vector index built from the One Piece wiki.
+A [LangGraph](https://langchain-ai.github.io/langgraph/) `StateGraph` that answers One Piece questions using RAG. It retrieves relevant chunks from a local Chroma vector store (built from the One Piece wiki) and injects them into the LLM prompt as the exclusive source of truth.
 
 LangGraph version targeted: **1.1.9**
 
@@ -20,8 +20,8 @@ LangGraph models an agent as a **directed graph** where:
 user question
      │
      ▼
-  [route] ──────────────────────────────► [answer] ──► END
-  (passthrough)                            (calls LLM)
+  [route] ──► [retrieve] ──► [answer] ──► END
+  (passthrough)   (query index)   (calls LLM)
 ```
 
 The graph is compiled once and then called with `.invoke()`. Each invocation runs from the entry point (`route`) to `END`.
@@ -34,8 +34,9 @@ Defined in `backend/agent/state.py`:
 
 ```python
 class AgentState(TypedDict):
-    question: str   # set by the caller before first node runs
-    answer: str     # populated by the `answer` node
+    question: str                     # set by the caller before first node runs
+    context: list[dict]               # populated by the `retrieve` node
+    answer: str                       # populated by the `answer` node
 ```
 
 LangGraph passes this dict into each node. A node returns a partial dict — only the keys it changed. LangGraph merges the return value back into the state automatically.
@@ -50,11 +51,18 @@ Defined in `backend/agent/nodes.py`.
 
 Currently a passthrough — returns `state` unchanged. It is the intended decision point for "does this question need retrieval?" — having it in the graph now means adding retrieval is an edit to one function, not a structural change.
 
+### `retrieve`
+
+Calls `rag.retriever.retrieve(state["question"], k=6)` and stores the result in `state["context"]`. Each chunk contains `text`, `source`, `heading`, and `score`.
+
 ### `answer`
 
-Calls the LLM with:
-- A system prompt establishing the One Piece expert persona.
-- A human message containing `state["question"]`.
+When context is available, the system prompt is structured as:
+1. A **CRITICAL INSTRUCTION** block that tells the LLM its training knowledge is outdated and it must prefer retrieved evidence (with explicit override scenarios like Luffy's devil fruit name)
+2. The wiki excerpts with `[Source: <stem> — <heading>]` labels
+3. Instructions to cite sources and say when information is insufficient
+
+When context is empty, the agent falls back to LLM-only answering with a note about uncertainty.
 
 Returns `{"answer": response.content}` (LangGraph merges this into the full state).
 
