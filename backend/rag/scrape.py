@@ -136,6 +136,37 @@ def fetch_page_html(title: str, client: httpx.Client) -> str:
 def extract_main_content(html: str, page_title: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
 
+    # --- EXTRACT INFOBOX FIRST (before it gets removed) ---
+    infobox_lines = []
+
+    infobox = soup.find(
+        "aside",
+        class_=lambda c: c and "portable-infobox" in c
+    )
+
+    if infobox:
+        for item in infobox.select("div.pi-item, section.pi-item"):
+            label_el = item.select_one(".pi-data-label")
+            value_el = item.select_one(".pi-data-value")
+
+            if label_el and value_el:
+                label = label_el.get_text(strip=True)
+                value = value_el.get_text(" ", strip=True)
+
+                if label and value:
+                    infobox_lines.append(f"- {label}: {value}")
+
+    infobox_md = ""
+
+    if infobox_lines:
+        infobox_md = (
+            "## Infobox\n"
+            + "\n".join(infobox_lines)
+            + "\n\n"
+        )
+
+    # --------------------------------------------------------
+
     # Remove noisy elements
     for tag in soup.select(
         "aside, .navbox, .toc, script, style, .mw-editsection, "
@@ -150,7 +181,7 @@ def extract_main_content(html: str, page_title: str) -> str:
 
     md = markdownify(str(content_div), heading_style="ATX", bullets="-")
 
-    return f"# {page_title}\n\n{md.strip()}\n"
+    return f"# {page_title}\n\n{infobox_md}{md.strip()}\n"
 
 
 def scrape_page(slug: str, output_stem: str, client: httpx.Client) -> bool:
@@ -170,6 +201,33 @@ def scrape_page(slug: str, output_stem: str, client: httpx.Client) -> bool:
 
     md_content = extract_main_content(html, title)
     out_path.write_text(md_content, encoding="utf-8")
+
+    # Warn if character pages are missing bounty info
+    content = out_path.read_text(encoding="utf-8")
+    character_stems = {
+        "luffy",
+        "zoro",
+        "nami",
+        "sanji",
+        "chopper",
+        "robin",
+        "franky",
+        "brook",
+        "jinbe",
+        "ace",
+        "shanks",
+        "law",
+        "blackbeard",
+        "kaido",
+        "big_mom",
+        "whitebeard",
+        "roger",
+    }
+    if output_stem in character_stems and "bounty" not in content.lower():
+        print(
+            f"  WARN  {output_stem}: "
+            "'bounty' not found — infobox may be incomplete"
+        )
 
     print(f"  fetch {output_stem} ({len(md_content):,} chars)")
     return True
