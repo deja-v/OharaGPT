@@ -28,10 +28,10 @@ COLLECTION_NAME = "op_wiki"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 
 # Minimum characters a chunk must have to be worth indexing
-MIN_CHUNK_CHARS = 100
+MIN_CHUNK_CHARS = 50
 
 
-def split_into_sections(md_text: str, source_file: str) -> list[dict]:
+def split_into_sections(md_text: str, source_file: str) -> list[dict[str, str]]:
     """
     Split a Markdown document into chunks at H2/H3 boundaries.
 
@@ -68,7 +68,7 @@ def split_into_sections(md_text: str, source_file: str) -> list[dict]:
     return chunks
 
 
-def load_all_chunks() -> list[dict]:
+def load_all_chunks() -> list[dict[str, str]]:
     chunks = []
     md_files = sorted(RAW_DIR.glob("*.md"))
     if not md_files:

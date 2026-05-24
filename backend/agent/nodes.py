@@ -6,13 +6,9 @@ from .state import AgentState
 
 CHUNK_MAX_CHARS=1500
 
-def route(state: AgentState) -> AgentState:
-    return state
-
 
 def retrieve_node(state: AgentState) -> AgentState:
-    chunks = retrieve(state["question"])
-    return {"question": state["question"], "context": chunks, "answer": ""}
+    return {"context": retrieve(state["question"])}
 
 
 def answer(state: AgentState) -> AgentState:
@@ -24,36 +20,30 @@ def answer(state: AgentState) -> AgentState:
             for c in context
         )
         system_prompt = (
-            "CRITICAL INSTRUCTION:\n\n"
             "You are a RAG-grounded assistant. "
             "The excerpts below are your ONLY source of truth. "
-            "Your training knowledge about One Piece is OUTDATED "
-            "and frequently wrong on recent reveals (post-chapter 1000). "
-            "When the excerpts contain an answer, "
-            "you MUST use it — even if it contradicts "
-            "what you 'know' from training.\n\n"
-            "Specifically:\n"
-            "- If excerpts say the true name of Luffy's devil fruit is "
-            "'Hito Hito no Mi, Model: Nika', "
-            "output that — NOT 'Gomu Gomu no Mi'\n"
-            "- 'Gomu Gomu no Mi' is a FAKE in-universe name\n"
-            "- 'Hito Hito no Mi, Model: Nika' is the REAL and OFFICIAL name\n"
-            "- If BOTH appear in context, "
-            "ALWAYS prefer the REAL name\n"
-            "- Always cite [Source: <stem>] for every fact\n\n"
-            "---\n\n"
-            "You are an expert on the One Piece manga and anime. "
-            "Answer questions using ONLY the wiki excerpts provided below. "
-            "For every fact you state, cite the source in parentheses, "
+            "Your training knowledge is OUTDATED. "
+            "When excerpts contain an answer, use it — even if it contradicts "
+            "what you know from training.\n\n"
+            "GROUNDING RULES:\n"
+            "1. Verify each fact against the excerpts. "
+            "Do not include unsupported claims.\n"
+            "2. Cite sources for every fact, "
             "e.g. (Source: luffy — Abilities). "
-            "If the excerpts do not contain enough information to answer, say so explicitly.\n\n"
+            "If you cannot cite it, do not assert it.\n"
+            "3. Keep answers concise (2-5 sentences). "
+            "Answer directly, then add brief context from excerpts.\n"
+            "4. If the excerpts lack enough information to answer clearly, "
+            "say so explicitly. Do not guess or use training knowledge.\n"
+            "5. Preserve canonical names, numbers, and entities "
+            "exactly as they appear in the excerpts.\n\n"
             f"Wiki excerpts:\n{context_block}"
         )
     else:
         system_prompt = (
             "You are an expert on the One Piece manga and anime. "
             "Answer questions accurately and concisely. "
-            "If you're not certain about something, say so."
+            "If you are uncertain about something, say so."
         )
 
     llm = get_llm()
@@ -62,4 +52,4 @@ def answer(state: AgentState) -> AgentState:
         HumanMessage(content=state["question"]),
     ]
     response = llm.invoke(messages)
-    return {"question": state["question"], "context": context, "answer": response.content}
+    return {"answer": response.content}
