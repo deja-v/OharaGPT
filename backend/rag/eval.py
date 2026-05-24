@@ -151,20 +151,14 @@ DB_PATH = str(Path(__file__).parent.parent / "checkpoints.sqlite")
 
 
 def score_answer(answer: str, keywords: list[str], sources: list[str]) -> tuple[str, bool, bool]:
-    """
-    Returns (symbol, keywords_pass, citation_pass).
-    = all keywords found AND at least one source cited
-     = keywords found but no citation, OR citation found but keywords missing
-    X = neither
-    """
     a = answer.lower()
     keywords_pass = all(kw.lower() in a for kw in keywords)
     citation_pass = any(src.lower() in a for src in sources)
 
     if keywords_pass and citation_pass:
-        return "", True, True
+        return "P", True, True
     elif keywords_pass or citation_pass:
-        return " ", False, False
+        return "~", keywords_pass, citation_pass
     else:
         return "X", False, False
 
@@ -210,10 +204,10 @@ def run_eval(use_rag: bool = True):
     passed = 0
     failing_fixes = []
     for i, question, answer, symbol, kw_pass, cite_pass, fix in results:
-        kw_str  = "?" if kw_pass  else "X"
-        cit_str = "?" if cite_pass else "X"
+        kw_str  = "Y" if kw_pass  else "X"
+        cit_str = "Y" if cite_pass else "X"
         print(f"Q{i:<3} {symbol:<6} {kw_str:<10} {cit_str:<8} {question[:45]}")
-        if symbol == "":
+        if symbol == "P":
             passed += 1
         else:
             failing_fixes.append((i, answer[:200], fix))

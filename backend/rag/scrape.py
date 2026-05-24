@@ -103,6 +103,9 @@ PAGES = [
     ("Whole_Cake_Island_Arc", "arc_whole_cake"),
     ("Wano_Country_Arc", "arc_wano"),
     ("Egghead_Arc", "arc_egghead"),
+    ("Dorry", "dorry"),
+    ("Brogy", "brogy"),
+    ("Giants", "giants"),
 ]
 
 
