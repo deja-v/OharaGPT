@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class AgentState(TypedDict):
-    question: str
-    context: list[dict]   # chunks returned by the retrieve node
-    answer: str
+class AgentState(TypedDict, total=False):
+    question: str         # provided by caller; required in practice
+    context: list[dict]   # populated by retrieve_node
+    answer: str           # populated by answer node

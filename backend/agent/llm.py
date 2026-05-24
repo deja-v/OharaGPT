@@ -1,6 +1,8 @@
 import os
+from functools import lru_cache
 
 
+@lru_cache(maxsize=1)
 def get_llm():
     if os.getenv("GOOGLE_API_KEY"):
         from langchain_google_genai import ChatGoogleGenerativeAI
