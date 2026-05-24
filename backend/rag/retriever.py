@@ -6,6 +6,7 @@ import os
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY"] = "False"
 from pathlib import Path
+import threading
 
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
@@ -15,6 +16,7 @@ COLLECTION_NAME = "op_wiki"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 
 _collection = None
+_lock = threading.Lock()
 
 # Maps known in-universe aliases to canonical/synonymous terms.
 # Used by expand_query() to improve embedding recall.
@@ -28,6 +30,10 @@ ALIAS_MAP = {
     "conqueror coating": "infusion supreme king haki advanced",
     "haoshoku": "coating infusion conqueror",
     "joy boy": "Nika sun god",
+    # --- Phase 2.5 additions ---
+    "immortality operation": "Perennial Youth Operation lifespan sacrifice",
+    "advanced haki": "coating infusion conqueror haoshoku wano",
+    "conqueror haki advanced": "coating infusion haoshoku wano imbue",
 }
 
 
@@ -79,17 +85,19 @@ def lexical_score(text: str, query: str) -> int:
 def _get_collection():
     global _collection
     if _collection is None:
-        if not INDEX_DIR.exists():
-            raise FileNotFoundError(
-                f"Vector index not found at {INDEX_DIR}. "
-                "Run `python -m rag.index` first."
-            )
-        embed_fn = SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
-        client = chromadb.PersistentClient(path=str(INDEX_DIR))
-        _collection = client.get_collection(
-            name=COLLECTION_NAME,
-            embedding_function=embed_fn,
-        )
+        with _lock:
+            if _collection is None:  # double-check inside lock
+                if not INDEX_DIR.exists():
+                    raise FileNotFoundError(
+                        f"Vector index not found at {INDEX_DIR}. "
+                        "Run `python -m rag.index` first."
+                    )
+                embed_fn = SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
+                client = chromadb.PersistentClient(path=str(INDEX_DIR))
+                _collection = client.get_collection(
+                    name=COLLECTION_NAME,
+                    embedding_function=embed_fn,
+                )
     return _collection
 
 

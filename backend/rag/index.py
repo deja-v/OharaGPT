@@ -52,7 +52,7 @@ def split_into_sections(md_text: str, source_file: str) -> list[dict[str, str]]:
     # Content before the first H2/H3
     preamble = md_text[: positions[0]].strip()
     if len(preamble) >= MIN_CHUNK_CHARS:
-        chunks.append({"text": preamble, "source": source_file, "heading": source_file})
+        chunks.append({"text": preamble, "source": source_file, "heading": "Introduction"})
 
     for i, pos in enumerate(positions):
         end = positions[i + 1] if i + 1 < len(positions) else len(md_text)
@@ -109,6 +109,9 @@ def build_index(force: bool = False):
     )
 
     existing_count = collection.count()
+    # Idempotency check is count-based (not content-based). If source files change
+    # such that the net chunk count stays the same (e.g. add one page, delete another),
+    # this check passes incorrectly and the stale index is kept. Use --force to override.
     if not force and existing_count == len(chunks):
         print(f"\nCollection already has {existing_count} chunks — nothing to do.")
         print("Pass --force to re-index.")

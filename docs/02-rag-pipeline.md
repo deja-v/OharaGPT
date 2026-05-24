@@ -6,7 +6,7 @@ A three-stage pipeline that gives the agent access to factual wiki content:
 
 1. **Scrape** — download ~70 One Piece wiki pages as Markdown files
 2. **Index** — chunk and embed them into a local Chroma vector store
-3. **Retrieve** — at query time, pull the 6 most relevant chunks and inject them into the LLM prompt
+3. **Retrieve** — at query time, pull the 10 most relevant chunks and inject them into the LLM prompt
 
 The agent graph becomes `route → retrieve → answer → END`. Every fact in the answer must cite which wiki page it came from.
 
@@ -55,7 +55,7 @@ Chunks are split at **H2/H3 section boundaries**, not at fixed character counts.
 - A fixed 500-character chunk often splits mid-sentence or mid-topic
 - Section chunks preserve the context needed to answer questions about a specific aspect of a character
 
-**Minimum chunk size:** 100 characters — filters out stub sections with no real content.
+**Minimum chunk size:** 50 characters — filters out stub sections with no real content.
 
 **Chunk metadata stored alongside each embedding:**
 - `source`: filename stem (e.g. `"luffy"`) — used as the wiki page reference in citations
@@ -63,21 +63,24 @@ Chunks are split at **H2/H3 section boundaries**, not at fixed character counts.
 
 ---
 
-## Alias injections (`rag/index.py`)
+## Query expansion (`rag/retriever.py`)
 
-Some facts are hidden behind aliases or partial names (e.g. "Gomu Gomu no Mi" vs. its true name "Hito Hito no Mi, Model: Nika"). Semantic search alone may retrieve the wrong page.
+Some facts are hidden behind in-universe aliases that have semantically different embeddings (e.g. "Gomu Gomu no Mi" vs. its true name "Hito Hito no Mi, Model: Nika"). Semantic search alone would miss the correct wiki page.
 
-To guide retrieval, `index.py` prepends **alias injection notes** to specific pages before chunking:
+`retriever.py` maintains an `ALIAS_MAP` dict. Before querying the vector store, `expand_query()` scans the lowercased query for alias substrings and appends the canonical terms in parentheses — preserving the original query while boosting cosine similarity with the correct page:
 
 ```python
-ALIAS_INJECTIONS = {
-    "nika_fruit": "Note: This page covers the Hito Hito no Mi Model Nika, ...",
-    "gomu_gomu": "Note: Gomu Gomu no Mi is an ALIAS. The official true name is ...",
-    "joy_boy": "Note: Joy Boy is connected to the Sun God Nika and Monkey D. Luffy...",
+ALIAS_MAP = {
+    "gomu gomu": "Hito Hito no Mi, Model: Nika",
+    "immortality operation": "Perennial Youth Operation lifespan sacrifice",
+    "advanced haki": "coating infusion conqueror haoshoku wano",
+    # ... more entries in retriever.py
 }
+# "What is the immortality operation Law can perform?"
+# → "What is the immortality operation Law can perform? (Perennial Youth Operation lifespan sacrifice)"
 ```
 
-These notes embed cross-reference hints directly into the vector store so embeddings connect aliases to the canonical page.
+To add a new alias: add a key-value pair to `ALIAS_MAP` in `retriever.py`. No other code changes needed.
 
 ---
 
@@ -114,13 +117,15 @@ These notes embed cross-reference hints directly into the vector store so embedd
 
 ## Retrieval (`rag/retriever.py`)
 
-**Interface:** `retrieve(query: str, k: int = 6) → list[dict]`
+**Interface:** `retrieve(query: str, k: int = 10) → list[dict]`
 
 Each result contains: `text`, `source`, `heading`, `score` (cosine distance, lower = better).
 
-**k=6:** six chunks gives the LLM enough context while fitting the prompt budget. A typical chunk is 300–800 characters, so 6 chunks ≈ 2,000–4,000 tokens of context.
+**k=10 with 3× oversampling:** Chroma fetches `k*3 = 30` candidates. These are then lexically reranked and diversified down to the final 10. The oversample gives the reranking step enough material to work with.
 
-**Keyword-based source boost:** for known tricky queries (e.g. "official name of Luffy's devil fruit"), `KEYWORD_SOURCE_BOOST` maps keyword tuples to source stems that **must** be included. After the normal Chroma query, any boosted source not already in results is fetched separately via a filtered query and appended. This ensures the canonical page (e.g. `nika_fruit`) is never absent even if the embedding ranks a different page higher.
+**Lexical reranking:** after semantic search, results are re-sorted by exact keyword overlap between the query and chunk text (`lexical_score()`). Sort key: `(lexical_score DESC, cosine_distance ASC)`. This ensures chunks containing the exact terms from the query (a bounty number, a devil fruit name) rank above semantically-close-but-wrong chunks.
+
+**Source diversification:** `diversify()` caps results at 2 chunks per source wiki page before returning top-k. Prevents one page (e.g. `luffy.md`) from filling all 10 slots, ensuring multi-page queries get context from both relevant pages.
 
 **Lazy loading:** the Chroma collection is loaded once on first call and cached in a module-level variable. Subsequent calls within the same process reuse the connection.
 
@@ -130,9 +135,10 @@ Each result contains: `text`, `source`, `heading`, `score` (cosine distance, low
 
 When the `retrieve` node returns chunks, the `answer` node builds a system prompt that:
 1. Provides each chunk with its `[Source: <stem> — <heading>]` label
-2. Prepend a **CRITICAL INSTRUCTION** block telling the LLM its training knowledge is outdated and it must prefer retrieved evidence (especially for known override scenarios like Luffy's devil fruit name)
-3. Instructs the LLM to cite sources for every fact
-4. Instructs the LLM to explicitly say when the excerpts don't contain enough information (rather than guessing)
+2. Tells the LLM its training knowledge is outdated and it must prefer retrieved evidence
+3. Instructs the LLM to cite sources for every fact (`(Source: X — Y)` format)
+4. Instructs the LLM to say explicitly when excerpts don't contain enough information (rather than guessing)
+5. Instructs the LLM to preserve canonical names, numbers, and entities exactly as written
 
 When no chunks are available (empty context), the agent falls back to LLM-only answering with a note about uncertainty.
 
@@ -144,9 +150,9 @@ When no chunks are available (empty context), the agent falls back to LLM-only a
 |---|---|---|
 | Wiki page slug is wrong | HTTP 404 in scrape output | Check the exact URL on onepiece.fandom.com and update `PAGES` in `scrape.py` |
 | Index not built | `FileNotFoundError` on first agent run | Run `python -m rag.index` from `backend/` |
-| Wrong chunks retrieved | Answer cites irrelevant sections | Increase `k`, improve query, add `KEYWORD_SOURCE_BOOST` entries in `retriever.py` |
-| LLM overrides retrieval with training knowledge | Answer uses training data instead of wiki excerpts | Strengthen the system prompt's override instructions in `nodes.py` |
-| Alias injection missing | Correct page not retrieved for alias-based queries | Add entry to `ALIAS_INJECTIONS` in `index.py` and re-index |
+| Wrong chunks retrieved | Answer cites irrelevant sections | Run `python -m rag.debug_retrieval "{query}"`, add `ALIAS_MAP` entry in `retriever.py` if needed |
+| LLM overrides retrieval with training knowledge | Answer uses training data instead of wiki excerpts | Strengthen grounding rules in system prompt in `nodes.py` |
+| Alias missing for a query | Correct page not retrieved | Add entry to `ALIAS_MAP` in `retriever.py` — no re-indexing required |
 | Chroma version mismatch | `AttributeError` on collection API | Pin `chromadb==1.5.8` in `requirements.txt` |
 | Sentence-transformers first run slow | ~30s pause on first query | Model downloads to `~/.cache/huggingface/` on first use; subsequent runs are instant |
 
