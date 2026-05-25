@@ -181,3 +181,9 @@ These changes are already applied to the code:
 | Idempotency check passes stale index | Index not updated after content changes | Use `python -m rag.index --force` |
 | Chroma version mismatch | `AttributeError` on collection API | Pin `chromadb==1.5.8` in `requirements.txt` |
 | Sentence-transformers first-run slow | ~30s pause on first query | Model downloads to `~/.cache/huggingface/` once; subsequent runs instant |
+
+---
+
+## Phase 3 (theory mode)
+
+Phase 3 does not change `retriever.py`, `index.py`, or `eval.py`. Theory questions call `retrieve(sub_question, k=3)` once per decomposed sub-question inside `evidence_hunt`. See [04 — Theory Verification Mode](./04-theory-verification.md).

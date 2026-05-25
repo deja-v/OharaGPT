@@ -9,6 +9,11 @@ langchain-core==1.3.2
 langchain-openai==1.2.1        # GitHub Models (OpenAI-compatible, free fallback)
 langchain-google-genai==4.2.2  # Gemini Flash (preferred when GOOGLE_API_KEY is set)
 
+# API (Phase 4)
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+slowapi==0.1.9
+
 # Env + config
 python-dotenv==1.2.2
 
