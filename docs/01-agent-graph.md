@@ -20,11 +20,14 @@ LangGraph models an agent as a **directed graph** where:
 user question
      │
      ▼
-  [route] ──► [retrieve] ──► [answer] ──► END
-  (passthrough)   (query index)   (calls LLM)
+[classify_mode] ──qa────► [retrieve] ──► [answer] ──► END
+     │
+     └──theory──► [decompose_theory] ──► [evidence_hunt] ──► [synthesize_verdict] ──► END
 ```
 
-The graph is compiled once and then called with `.invoke()`. Each invocation runs from the entry point (`route`) to `END`.
+The graph is compiled once and then called with `.invoke()`. Each invocation starts at `classify_mode` and ends at `END` on either the QA or theory branch.
+
+**Phase 3 details:** See [04 — Theory Verification Mode](./04-theory-verification.md).
 
 ---
 
@@ -33,10 +36,16 @@ The graph is compiled once and then called with `.invoke()`. Each invocation run
 Defined in `backend/agent/state.py`:
 
 ```python
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     question: str                     # set by the caller before first node runs
-    context: list[dict]               # populated by the `retrieve` node
-    answer: str                       # populated by the `answer` node
+    context: list[dict]               # populated by retrieve_node (QA path)
+    answer: str                       # populated by answer or synthesize_verdict
+
+    # Phase 3 — theory path only
+    mode: str                         # "qa" or "theory"
+    sub_questions: list[str]
+    evidence: list[dict]
+    verdict: str                      # SUPPORTED | CONTRADICTED | INSUFFICIENT
 ```
 
 LangGraph passes this dict into each node. A node returns a partial dict — only the keys it changed. LangGraph merges the return value back into the state automatically.
@@ -47,15 +56,15 @@ LangGraph passes this dict into each node. A node returns a partial dict — onl
 
 Defined in `backend/agent/nodes.py`.
 
-### `route`
+### `classify_mode` (entry point)
 
-Currently a passthrough — returns `state` unchanged. It is the intended decision point for "does this question need retrieval?" — having it in the graph now means adding retrieval is an edit to one function, not a structural change.
+Rule-based router. If the lowercased question contains any phrase from `THEORY_TRIGGERS`, sets `mode: "theory"`; otherwise `mode: "qa"`. No LLM call.
 
-### `retrieve`
+### `retrieve` (`retrieve_node`)
 
-Calls `rag.retriever.retrieve(state["question"], k=6)` and stores the result in `state["context"]`. Each chunk contains `text`, `source`, `heading`, and `score`.
+**QA path only.** Calls `rag.retriever.retrieve(state["question"])` (default `k=10`) and stores the result in `state["context"]`. Each chunk contains `text`, `source`, `heading`, and `score`.
 
-### `answer`
+### `answer` (QA path)
 
 When context is available, the system prompt is structured as:
 1. A **CRITICAL INSTRUCTION** block that tells the LLM its training knowledge is outdated and it must prefer retrieved evidence (with explicit override scenarios like Luffy's devil fruit name)
@@ -65,6 +74,10 @@ When context is available, the system prompt is structured as:
 When context is empty, the agent falls back to LLM-only answering with a note about uncertainty.
 
 Returns `{"answer": response.content}` (LangGraph merges this into the full state).
+
+### Theory path nodes
+
+`decompose_theory`, `evidence_hunt`, and `synthesize_verdict` run when `mode == "theory"`. They produce `sub_questions`, tagged `evidence`, and a structured `verdict` plus `answer`. Full behavior, triggers, and eval gate: [04 — Theory Verification Mode](./04-theory-verification.md).
 
 ---
 
@@ -107,7 +120,7 @@ Every time a node finishes, LangGraph writes a checkpoint row containing:
 
 ### Why `thread_id` matters
 
-`thread_id` is the key that lets LangGraph resume a conversation. If you call `.invoke()` twice with the same `thread_id`, the second call continues from where the first left off (state is reloaded from the DB). In `main.py` we generate a fresh `uuid4()` per CLI run, so each question is an independent conversation.
+`thread_id` is the key that lets LangGraph resume a conversation. If you call `.invoke()` twice with the same `thread_id`, the second call continues from where the first left off (state is reloaded from the DB). The CLI (`cli.py`) generates a fresh `uuid4()` per run; the API accepts an optional `thread_id` in `POST /api/chat` (see [05 — API Layer](./05-api.md)).
 
 This is also what makes `langgraph-replay` work: it reads the checkpoint rows grouped by `thread_id` and can replay any run step-by-step.
 
@@ -129,8 +142,19 @@ Open `backend/checkpoints.sqlite` in DBeaver (or any SQLite browser):
 
 ---
 
+## How to run the agent
+
+| Interface | Command |
+|-----------|---------|
+| HTTP API (Phase 4) | `cd backend && uvicorn main:app --reload --port 8000` |
+| CLI | `cd backend && python cli.py "Your question"` |
+
+---
+
 ## Where to read more
 
+- [05 — API Layer](./05-api.md) — FastAPI endpoints, streaming, `api_eval`
+- [04 — Theory Verification Mode](./04-theory-verification.md) — Phase 3 routing, verdicts, eval
 - [LangGraph conceptual docs](https://langchain-ai.github.io/langgraph/concepts/)
 - [SqliteSaver reference](https://langchain-ai.github.io/langgraph/reference/checkpoints/#langgraph.checkpoint.sqlite.SqliteSaver)
 - [GitHub Models free tier](https://docs.github.com/en/github-models)
