@@ -106,6 +106,8 @@ PAGES = [
     ("Dorry", "dorry"),
     ("Brogy", "brogy"),
     ("Giants", "giants"),
+    ("Jewelry_Bonney", "bonney"),
+    ("Bartholomew_Kuma", "kuma"),
 ]
 
 
