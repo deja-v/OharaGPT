@@ -1,0 +1,74 @@
+.emptyState {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.roseWrap {
+  opacity: 0.22;
+  margin-bottom: 2rem;
+}
+
+.emptyHeading {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 0.06em;
+  color: var(--cream);
+  margin-bottom: 8px;
+  font-weight: 400;
+}
+
+.emptySub {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+  font-weight: 400;
+}
+
+.wantedRow {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+}
+
+.wantedCard {
+  width: 192px;
+  padding: 18px 16px;
+  background: var(--surface);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: var(--radius-lg);
+  color: var(--white);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.wantedCard:hover {
+  border-color: rgba(201,168,76,0.5);
+}
+
+.wantedCard:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.wantedTag {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.wantedQuestion {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(245,236,215,0.75);
+  font-weight: 400;
+}

@@ -1,0 +1,23 @@
+:root {
+  --bg: #080E18;
+  --surface: #111F2E;
+  --surface2: #0A1018;
+  --chip-bg: #1A2F45;
+  --input-bg: #0A1520;
+  --gold: #C9A84C;
+  --gold-20: rgba(201,168,76,0.12);
+  --gold-33: rgba(201,168,76,0.20);
+  --gold-44: rgba(201,168,76,0.27);
+  --cream: #F5ECD7;
+  --cream-text: #1A1000;
+  --blue-lt: #4DA3D8;
+  --white: rgba(245,236,215,0.92);
+  --muted: rgba(245,236,215,0.45);
+  --v-green: #3D7A57;
+  --v-red: #8B2635;
+  --v-gray: #4A5568;
+  --radius-xl: 18px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}

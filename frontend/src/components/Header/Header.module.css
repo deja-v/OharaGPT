@@ -1,0 +1,63 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 56px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+  background: rgba(10,21,32,0.9);
+  backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+
+.logoSkull {
+  width: 22px;
+  height: 22px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.threadId {
+  font-family: 'Inter Mono', monospace;
+  font-size: 10px;
+  color: var(--blue-lt);
+  opacity: 0.5;
+  letter-spacing: 0.1em;
+}
+
+.newLogBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--gold-44);
+  color: var(--gold);
+  padding: 5px 14px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.newLogBtn:hover {
+  border-color: var(--gold);
+  background: rgba(201,168,76,0.08);
+}

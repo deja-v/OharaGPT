@@ -1,0 +1,69 @@
+.bubble {
+  padding: 14px 18px;
+  line-height: 1.7;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  position: relative;
+}
+
+.bubble p + p,
+.bubble ul,
+.bubble ol {
+  margin-top: 0.75rem;
+}
+
+.bubble ul,
+.bubble ol {
+  padding-left: 1.2rem;
+}
+
+.userBubble {
+  background: var(--cream);
+  color: var(--cream-text);
+  border-radius: var(--radius-xl) var(--radius-xl) 4px var(--radius-xl);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+}
+
+.asstBubble {
+  background: var(--surface2);
+  color: var(--white);
+  border-radius: 4px var(--radius-xl) var(--radius-xl) var(--radius-xl);
+  box-shadow: inset 0 0 0 1px rgba(201,168,76,0.06), 0 2px 20px rgba(0,0,0,0.35);
+}
+
+.asstBubble::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid rgba(201,168,76,0.25);
+  border-left: 1px solid rgba(201,168,76,0.25);
+  pointer-events: none;
+}
+
+.asstBubble strong {
+  color: var(--blue-lt);
+  font-weight: 600;
+}
+
+.theoryBubble {
+  overflow: visible;
+  padding-top: 16px;
+}
+
+.errorBubble {
+  opacity: 0.75;
+}
+
+.streamDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--blue-lt);
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+}

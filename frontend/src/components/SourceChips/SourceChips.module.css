@@ -1,0 +1,26 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--chip-bg);
+  border: 1px dashed rgba(201,168,76,0.27);
+  border-radius: 6px;
+  padding: 4px 11px;
+  font-family: 'Inter Mono', monospace;
+  font-size: 11px;
+  color: rgba(245,236,215,0.7);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.chip:hover {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
