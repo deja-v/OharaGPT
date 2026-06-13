@@ -6,10 +6,11 @@ from functools import lru_cache
 def get_llm():
     if os.getenv("GOOGLE_API_KEY"):
         from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+        return ChatGoogleGenerativeAI(model="gemini-2.0-flash", timeout=30)
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(
         model="gpt-4o-mini",
         base_url="https://models.inference.ai.azure.com",
         api_key=os.getenv("GITHUB_TOKEN"),
+        timeout=30,
     )

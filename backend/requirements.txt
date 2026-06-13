@@ -13,6 +13,7 @@ langchain-google-genai==4.2.2  # Gemini Flash (preferred when GOOGLE_API_KEY is 
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 slowapi==0.1.9
+aiosqlite==0.22.1
 
 # Env + config
 python-dotenv==1.2.2

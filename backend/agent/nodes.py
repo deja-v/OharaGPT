@@ -73,7 +73,6 @@ THEORY_TRIGGERS = [
     "is actually",
     "could luffy",
     "could zoro",
-    "is imu",
 ]
 
 VERDICT_CHUNK_MAX_CHARS = 800
@@ -122,15 +121,19 @@ def decompose_theory(state: AgentState) -> AgentState:
 
 def evidence_hunt(state: AgentState) -> AgentState:
     all_evidence = []
+    seen: set[tuple[str, str]] = set()
     for sub_q in state.get("sub_questions", []):
-        for chunk in retrieve(sub_q, k=3):
-            all_evidence.append({
-                "sub_question": sub_q,
-                "text": chunk["text"],
-                "source": chunk["source"],
-                "heading": chunk["heading"],
-                "score": chunk["score"],
-            })
+        for chunk in retrieve(sub_q, k=5):
+            key = (chunk["source"], chunk["heading"])
+            if key not in seen:
+                seen.add(key)
+                all_evidence.append({
+                    "sub_question": sub_q,
+                    "text": chunk["text"],
+                    "source": chunk["source"],
+                    "heading": chunk["heading"],
+                    "score": chunk["score"],
+                })
     return {"evidence": all_evidence}
 
 
@@ -164,18 +167,27 @@ def synthesize_verdict(state: AgentState) -> AgentState:
     system_prompt = (
         "You are verifying a One Piece fan theory using wiki excerpts only.\n\n"
         "Verdict definitions:\n"
-        "- SUPPORTED — wiki explicitly confirms a key element of the theory\n"
-        "- CONTRADICTED — wiki explicitly contradicts a key element\n"
-        "- INSUFFICIENT — not enough confirmed evidence to decide (speculation, unconfirmed)\n\n"
+        "- SUPPORTED — the excerpts explicitly confirm a key claim of the theory\n"
+        "- CONTRADICTED — the excerpts explicitly refute a key claim of the theory\n"
+        "- INSUFFICIENT — not enough confirmed evidence to decide; "
+        "evidence is speculative, theorized, rumored, or the excerpts "
+        "lack relevant information\n\n"
+        "Important:\n"
+        "- Evidence labeled as 'theorized,' 'speculated,' or 'rumored' "
+        "does NOT count as support — use INSUFFICIENT.\n"
+        "- Absence of evidence (no excerpts mentioning the claim) "
+        "is INSUFFICIENT, not CONTRADICTED.\n"
+        "- If one sub-question has supporting evidence and another "
+        "has contradicting evidence, weigh both and decide which "
+        "is stronger. If evenly split, use INSUFFICIENT.\n\n"
         "GROUNDING RULES:\n"
         "1. Base your verdict only on the excerpts below.\n"
-        "2. Cite sources for every fact, e.g. (Source: bonney — Background).\n"
+        "2. Cite sources for every claim, e.g. (Source: bonney — Background).\n"
         "3. If excerpts lack enough information, use INSUFFICIENT.\n\n"
         "Output format (required):\n"
         "Verdict: SUPPORTED | CONTRADICTED | INSUFFICIENT\n\n"
         "[2-3 sentence explanation with citations]\n\n"
         "Supporting evidence: (Source: ...), (Source: ...)\n\n"
-        f"Theory: {state['question']}\n\n"
         f"Wiki excerpts by sub-question:\n{context_block}"
     )
 
